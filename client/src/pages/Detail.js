@@ -11,6 +11,7 @@ import {
   ADD_TO_CART,
   UPDATE_PRODUCTS,
 } from '../utils/actions';
+import { idbPromise} from '../utils/helpers'
 function Detail() {
   const [state, dispatch] = useStoreContext();
   
@@ -28,10 +29,17 @@ function Detail() {
         _id: id,
         purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
       })
+      // if we're updating quantity, use existing item data and increment purchaseQuantity value by one
+      idbPromise('cart', 'put', {
+        ...itemInCart,
+        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
+      })
     } else {
       dispatch({ 
         type: ADD_TO_CART,
         product: {...currentProduct, purchaseQuantity: 1 }})
+      // if product isn't in the cart yet, add it to the current shopping cart in IndexedDB
+      idbPromise('cart', 'put', {...currentProduct, purchaseQuantity: 1})
     }
   }
   function removeFromCart() {
@@ -39,7 +47,7 @@ function Detail() {
         type: REMOVE_FROM_CART,
         _id: currentProduct._id,
       })
-    
+    idbPromise('cart', 'delete', { ...currentProduct })
   }
 
   //const products = data?.products || [];
@@ -52,8 +60,18 @@ function Detail() {
         type: UPDATE_PRODUCTS,
         products: data.products
       })
+      data.products.forEach((product) => {
+        idbPromise('products', 'put', product);
+      })
+    } else if(!loading){
+      idbPromise('products', 'get').then((indexedProducts) => {
+        dispatch({
+          type: UPDATE_PRODUCTS,
+          products: indexedProducts
+        });
+      });
     }
-  }, [products, data, dispatch, id]);
+  }, [products, data, loading, dispatch, id]);
 
   return (
     <>
